@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kim Thành ngon</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+      body {
+        background: #1b4332;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      #game-container {
+        position: relative;
+        width: 850px;
+        height: 620px;
+        border: 6px solid #2d6a4f;
+        border-radius: 12px;
+        background-color: #40916c;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        background: #52b788;
+      }
+      #ui-panel {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        color: #ffffff;
+        font-weight: bold;
+        font-size: 15px;
+        background: rgba(8, 28, 21, 0.75);
+        padding: 12px 18px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+        line-height: 1.5;
+      }
+      #title {
+        font-size: 22px;
+        color: #ffb703;
+        font-weight: 900;
+        margin-bottom: 2px;
+      }
+      #sub-title {
+        font-size: 13px;
+        color: #d8f3dc;
+        margin-bottom: 10px;
+      }
+      #shop {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .btn {
+        background: linear-gradient(135deg, #ff9e00, #ff6d00);
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 6px;
+        font-size: 13px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        transition: transform 0.1s;
+      }
+      .btn:active {
+        transform: scale(0.95);
+      }
+      #attack-btn {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #d90429, #ef233c);
+        border: 2px solid #ffb703;
+        color: white;
+        font-size: 18px;
+        padding: 14px 24px;
+        border-radius: 30px;
+        cursor: pointer;
+        font-weight: 800;
+        box-shadow: 0 6px 15px rgba(217, 4, 41, 0.4);
+        transition: transform 0.1s;
+      }
+      #attack-btn:active {
+        transform: scale(0.92);
+      }
+      #wave-banner {
+        position: absolute;
+        top: 40%;
+        width: 100%;
+        text-align: center;
+        font-size: 36px;
+        color: #ffb703;
+        font-weight: 900;
+        text-shadow: 0 3px 8px rgba(0, 0, 0, 0.8);
+        display: none;
+        pointer-events: none;
+      }
+      #game-over {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(8, 28, 21, 0.88);
+        color: white;
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+      }
+      #game-over h1 {
+        font-size: 45px;
+        color: #ff4d6d;
+        text-shadow: 0 2px 10px rgba(255, 77, 109, 0.5);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container">
+      <canvas id="gameCanvas" width="850" height="620"></canvas>
+
+      <div id="ui-panel">
+        <div id="title">Kim Thành ngon</div>
+        <div id="sub-title">Trung Thành trò chơi</div>
+        <div>
+          Máu: <span id="hp-txt">100</span>/<span id="maxhp-txt">100</span>
+        </div>
+        <div>Xu: <span id="coin-txt">0</span></div>
+        <div>Wave: <span id="wave-txt">1</span></div>
+        <div>Sát thương: <span id="dmg-txt">20</span></div>
+      </div>
+
+      <div id="shop">
+        <button class="btn" onclick="buyHP()">Tăng Máu (+20) - 5 Xu</button>
+        <button class="btn" onclick="buyDMG()">
+          Tăng Sát Thương (+10) - 5 Xu
+        </button>
+      </div>
+
+      <button id="attack-btn" onclick="useSkill()">Trung Thành lắc lắc</button>
+
+      <div id="wave-banner">Thành múp đã +1 kg</div>
+
+      <div id="game-over">
+        <h1>BẠN ĐÃ THUA!</h1>
+        <button
+          class="btn"
+          style="padding: 12px 25px; font-size: 16px"
+          onclick="restartGame()"
+        >
+          Chơi lại
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      const rawImageSrc =
+        "data:image/webp;base64,UklGRmYTAABXRUJQVlA4WAoAAAAgAAAA1wAA5AAASUNDUMgBAAAAAAHIAAIANgAAAG1udHJSR0JSIFhZWiAH3gACABkACgAaAABhY3NwTVNGVAAAAABzcnJjAAAAAAAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLXNycmsvYmQAAAAAAAAAAAAAAAANY3BydAAAAAYAAAAAAGRlc2MAAAGsAAAAeHd0cHQAAAI8AAAAFGJrcHQAAAJQAAAAFHJYWVoAAAJkAAAAFGdYWVoAAAJ4AAAAFGJYWVoAAAKMAAAAFHJUUkMAAAKcAAAAKGdUUkMAAAKcAAAAKGJUUkMAAAKcAAAAKHJYW doAAAAGAAAAAAGRlc2MAAAGsAAAAeHd0cHQAAAI8AAAAFGJrcHQAAAJQAAAAFHJYWVoAAAJkAAAAFGdYWVoAAAJ4AAAAFGJYWVoAAAKMAAAAFHJUUkMAAAKcAAAAKGdUUkMAAAKcAAAAKGJUUkMAAAKcAAAAKHJYW doAAAAGAAAAAAGRlc2MAAAGsAAAAeHd0cHQAAAI8AAAAFGJrcHQAAAJQAAAAFHJYWVoAAAJkAAAAFGdYWVoAAAJ4AAAAFGJYWVoAAAKMAAAAFHJUUkMAAAKcAAAAKGdUUkMAAAKcAAAAKGJUUkMAAAKcAAAAKHJYW";
+
+      const monsterImg = new Image();
+      monsterImg.src = rawImageSrc;
+
+      let player = {
+        x: 425,
+        y: 310,
+        size: 18,
+        hp: 100,
+        maxHp: 100,
+        dmg: 20,
+        speed: 4,
+        healRate: 1,
+        lastHeal: 0,
+      };
+
+      let coins = 0;
+      let wave = 1;
+      let enemies = [];
+      let droppedCoins = [];
+      let popups = [];
+      let keys = {};
+      let gameOver = false;
+      let waveBannerTimeout = null;
+
+      window.addEventListener("keydown", (e) => (keys[e.key] = true));
+      window.addEventListener("keyup", (e) => (keys[e.key] = false));
+
+      function spawnWave() {
+        enemies = [];
+        let count = 3 + wave * 2;
+        for (let i = 0; i < count; i++) {
+          let x, y;
+          if (Math.random() < 0.5) {
+            x = Math.random() < 0.5 ? -40 : canvas.width + 40;
+            y = Math.random() * canvas.height;
+          } else {
+            x = Math.random() * canvas.width;
+            y = Math.random() < 0.5 ? -40 : canvas.height + 40;
+          }
+          enemies.push({
+            x: x,
+            y: y,
+            width: 45,
+            height: 60,
+            hp: 20 + wave * 10,
+            maxHp: 20 + wave * 10,
+            dmg: 5 + wave * 2,
+            speed: 1 + Math.random() * 0.8,
+          });
+        }
+      }
+
+      function showWaveBanner() {
+        let banner = document.getElementById("wave-banner");
+        banner.style.display = "block";
+        clearTimeout(waveBannerTimeout);
+        waveBannerTimeout = setTimeout(() => {
+          banner.style.display = "none";
+        }, 2000);
+      }
+
+      function useSkill() {
+        if (gameOver) return;
+        enemies.forEach((e) => {
+          let dx = e.x - player.x;
+          let dy = e.y - player.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 180) {
+            e.hp -= player.dmg * 2;
+            popups.push({
+              x: e.x,
+              y: e.y,
+              text: "-" + player.dmg * 2,
+              color: "#ffb703",
+              life: 30,
+            });
+          }
+        });
+
+        ctx.fillStyle = "rgba(255, 183, 3, 0.35)";
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 180, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function buyHP() {
+        if (coins >= 5) {
+          coins -= 5;
+          player.maxHp += 20;
+          player.hp += 20;
+          updateUI();
+        }
+      }
+
+      function buyDMG() {
+        if (coins >= 5) {
+          coins -= 5;
+          player.dmg += 10;
+          updateUI();
+        }
+      }
+
+      function updateUI() {
+        document.getElementById("hp-txt").innerText = Math.floor(player.hp);
+        document.getElementById("maxhp-txt").innerText = player.maxHp;
+        document.getElementById("coin-txt").innerText = coins;
+        document.getElementById("wave-txt").innerText = wave;
+        document.getElementById("dmg-txt").innerText = player.dmg;
+      }
+
+      function update() {
+        if (gameOver) return;
+
+        if (
+          (keys["w"] || keys["W"] || keys["ArrowUp"]) &&
+          player.y > player.size
+        )
+          player.y -= player.speed;
+        if (
+          (keys["s"] || keys["S"] || keys["ArrowDown"]) &&
+          player.y < canvas.height - player.size
+        )
+          player.y += player.speed;
+        if (
+          (keys["a"] || keys["A"] || keys["ArrowLeft"]) &&
+          player.x > player.size
+        )
+          player.x -= player.speed;
+        if (
+          (keys["d"] || keys["D"] || keys["ArrowRight"]) &&
+          player.x < canvas.width - player.size
+        )
+          player.x += player.speed;
+
+        let now = Date.now();
+        if (now - player.lastHeal > 1000) {
+          player.lastHeal = now;
+          if (player.hp < player.maxHp) {
+            player.hp = Math.min(player.maxHp, player.hp + player.healRate);
+            popups.push({
+              x: player.x,
+              y: player.y - 12,
+              text: "+1",
+              color: "#52b788",
+              life: 30,
+            });
+            updateUI();
+          }
+        }
+
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          let e = enemies[i];
+          let dx = player.x - e.x;
+          let dy = player.y - e.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > 0) {
+            e.x += (dx / dist) * e.speed;
+            e.y += (dy / dist) * e.speed;
+          }
+
+          if (dist < player.size + e.width / 2) {
+            player.hp -= e.dmg * 0.02;
+            updateUI();
+            if (player.hp <= 0) {
+              player.hp = 0;
+              gameOver = true;
+              document.getElementById("game-over").style.display = "flex";
+            }
+          }
+
+          if (e.hp <= 0) {
+            droppedCoins.push({ x: e.x, y: e.y });
+            enemies.splice(i, 1);
+          }
+        }
+
+        for (let i = droppedCoins.length - 1; i >= 0; i--) {
+          let c = droppedCoins[i];
+          let dx = player.x - c.x;
+          let dy = player.y - c.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < player.size + 10) {
+            coins++;
+            updateUI();
+            droppedCoins.splice(i, 1);
+          }
+        }
+
+        if (enemies.length === 0) {
+          wave++;
+          updateUI();
+          showWaveBanner();
+          spawnWave();
+        }
+
+        for (let i = popups.length - 1; i >= 0; i--) {
+          popups[i].y -= 0.5;
+          popups[i].life--;
+          if (popups[i].life <= 0) popups.splice(i, 1);
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#40916c";
+        for (let i = 0; i < canvas.width; i += 50) {
+          for (let j = 0; j < canvas.height; j += 50) {
+            if ((i + j) % 100 === 0) {
+              ctx.fillRect(i, j, 50, 50);
+            }
+          }
+        }
+
+        droppedCoins.forEach((c) => {
+          ctx.fillStyle = "#ffb703";
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#fb8500";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
+
+        ctx.fillStyle = "#2196f3";
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        enemies.forEach((e) => {
+          if (monsterImg.complete && monsterImg.naturalWidth !== 0) {
+            ctx.drawImage(
+              monsterImg,
+              e.x - e.width / 2,
+              e.y - e.height / 2,
+              e.width,
+              e.height,
+            );
+          } else {
+            ctx.fillStyle = "#d90429";
+            ctx.fillRect(
+              e.x - e.width / 2,
+              e.y - e.height / 2,
+              e.width,
+              e.height,
+            );
+          }
+
+          ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+          ctx.fillRect(e.x - 20, e.y - e.height / 2 - 8, 40, 5);
+          ctx.fillStyle = "#ef233c";
+          ctx.fillRect(
+            e.x - 20,
+            e.y - e.height / 2 - 8,
+            (e.hp / e.maxHp) * 40,
+            5,
+          );
+        });
+
+        popups.forEach((p) => {
+          ctx.fillStyle = p.color;
+          ctx.font = "bold 15px sans-serif";
+          ctx.fillText(p.text, p.x - 8, p.y);
+        });
+      }
+
+      function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      function restartGame() {
+        player.hp = 100;
+        player.maxHp = 100;
+        player.dmg = 20;
+        coins = 0;
+        wave = 1;
+        gameOver = false;
+        document.getElementById("game-over").style.display = "none";
+        updateUI();
+        showWaveBanner();
+        spawnWave();
+      }
+
+      showWaveBanner();
+      spawnWave();
+      updateUI();
+      loop();
+    </script>
+  </body>
+</html>
